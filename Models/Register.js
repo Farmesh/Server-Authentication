@@ -39,6 +39,12 @@ const registerSchema = new mongoose.Schema({
     isSubscribe: {
         type: Boolean,
         default: false
+    },
+    otp: {
+        type: String
+    },
+    otpExpires: {
+        type: Date 
     }
 
 });

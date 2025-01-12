@@ -3,51 +3,87 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken'; 
 import sendSms from "../TwilioService.js";
 
-export const OtpSender = async (req,res)=>{
+export const OtpSender = async (req, res) => {
+  const { Phonenumber } = req.body;
+  try {
+    const otpGenerated = Math.floor(1000 + Math.random() * 9000); 
+    const message = `Your OTP is ${otpGenerated}`;
+    const number = `+91${Phonenumber}`; 
+    
+    const user = await registerModel.findOneAndUpdate(
+      { Phonenumber },
+      { otp: otpGenerated, otpExpires: Date.now() + 300000 },
+      { upsert: true, new: true }
+    );
 
-}
-
-
+    await sendSms(number, message);
+    res.status(200).json({ message: 'OTP sent successfully.' });
+  } catch (error) {
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 export const register = async (req, res) => {
-    const { Name, Address, Phonenumber, Email, Password, countryId, stateId, cityId, Gender, isSubscribe } = req.body;
-    try {
-        const hashedPassword = await bcrypt.hash(Password, 10);
-        const user = new registerModel({
-            Name,
-            Address,
-            Phonenumber,
-            Email,
-            Password: hashedPassword,
-            countryId,
-            stateId,
-            cityId,
-            Gender,
-            isSubscribe,
-        });
-        const existingUser = await registerModel.findOne({ Email: user.Email });
-if (existingUser) {
-   return res.status(400).json({ message: 'Email is already registered.' });
-}
-        await user.save();
-        const message = `Welcome ${user.Name}! Your registration was successful.`;
-        const number = '+91'+ Phonenumber;
-         await sendSms(number, message);
-        res.status(201).json({ message: 'User registered successfully.' });
-        
+  const {
+    Name,
+    Address,
+    Phonenumber,
+    Email,
+    Password,
+    countryId,
+    stateId,
+    cityId,
+    Gender,
+    isSubscribe,
+    otp
+  } = req.body;
 
+  try {
+    
+    const user = await registerModel.findOne({ Phonenumber });
 
-
-    } catch (err) {
-      console.error('Error during registration:', err);  
-        res.status(500).json({ error: err.message });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found. Please request an OTP first.' });
     }
+
+    if (user.otp !== otp || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP.' });
+    }
+
+    
+    const existingUser = await registerModel.findOne({ Email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email is already registered.' });
+    }
+
+    
+    const hashedPassword = await bcrypt.hash(Password, 10);
+    user.Name = Name;
+    user.Address = Address;
+    user.Email = Email;
+    user.Phonenumber = Phonenumber;
+    user.Password = hashedPassword;
+    user.countryId = countryId;
+    user.stateId = stateId;
+    user.cityId = cityId;
+    user.Gender = Gender;
+    user.isSubscribe = isSubscribe;
+    user.otp = undefined; 
+    user.otpExpires = undefined;
+
+    await user.save();
+
+    res.status(201).json({ message: 'User registered successfully.' });
+  } catch (err) {
+    console.error('Error during registration:', err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
 
 export const login = async (req, res) => {
     try {
-        console.log(req.body);  // Debugging request body
       const { email, password } = req.body;
   
       // Find user by email

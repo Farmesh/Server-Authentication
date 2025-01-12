@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { createCountry ,createState, createCity, getCountries, getStateByCountryid, getCityByStateId  } from "./Controller/RegionController.js";
-import { editProfile, changePassword, register, getProfile, login } from "./Controller/UserController.js";
+import { editProfile, changePassword, register, getProfile, login, OtpSender } from "./Controller/UserController.js";
 import { authMiddleware } from "./middleware.js";
 
 
@@ -27,8 +27,7 @@ app.get("/profile", authMiddleware, getProfile);
 app.put("/profile", authMiddleware, editProfile);
 app.put("/change-password",authMiddleware, changePassword);
 
-
-
+app.post("/send-otp", OtpSender);
 
 
 
